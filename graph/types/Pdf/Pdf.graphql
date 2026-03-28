@@ -1,0 +1,162 @@
+"""
+A registered PDF component available for generation.
+Modules register these via their `pdfs` array.
+"""
+type ReactoryPdfComponent {
+  nameSpace: String!
+  name: String!
+  version: String!
+  key: String
+  description: String
+  enabled: Boolean
+}
+
+"""
+Result of a PDF generation operation.
+"""
+type PdfGenerationResult {
+  success: Boolean!
+  filename: String
+  """Base64-encoded PDF content (when returnContent is true)"""
+  content: String
+  """Reactory file ID if saved to file system"""
+  fileId: String
+  error: String
+  pageCount: Int
+}
+
+"""
+Extracted text content from a single PDF page.
+"""
+type PdfExtractedPage {
+  pageNumber: Int!
+  text: String!
+  lines: [String!]!
+}
+
+"""
+Result of text extraction from a PDF document.
+"""
+type PdfExtractedText {
+  pages: [PdfExtractedPage!]!
+  metadata: Any
+  totalPages: Int!
+}
+
+"""
+A positioned element extracted from a PDF page.
+"""
+type PdfExtractedElement {
+  type: String!
+  content: String!
+  x: Float!
+  y: Float!
+  width: Float!
+  height: Float!
+}
+
+"""
+Layout-aware extraction result for a single page.
+"""
+type PdfExtractedPageLayout {
+  pageNumber: Int!
+  width: Float!
+  height: Float!
+  text: String!
+  elements: [PdfExtractedElement!]!
+}
+
+"""
+Result of splitting a PDF into multiple parts.
+"""
+type PdfSplitResult {
+  success: Boolean!
+  parts: [PdfGenerationResult!]
+  error: String
+}
+
+"""
+Input for generating a PDF from a registered component.
+"""
+input PdfGenerateFromComponentInput {
+  nameSpace: String!
+  name: String!
+  version: String
+  """Parameters passed to the component's resolver"""
+  params: Any
+  """If true, return base64 content in the response"""
+  returnContent: Boolean
+  filename: String
+}
+
+"""
+Input for generating a PDF from a raw pdfmake document definition.
+"""
+input PdfGenerateFromDefinitionInput {
+  """The pdfmake document definition as a JSON object"""
+  definition: Any!
+  filename: String
+  """If true, return base64 content in the response"""
+  returnContent: Boolean
+}
+
+"""
+Input for extracting text from a PDF.
+"""
+input PdfExtractTextInput {
+  """Base64-encoded PDF content"""
+  content: String!
+}
+
+"""
+Input for extracting layout-aware page data from a PDF.
+"""
+input PdfExtractPagesInput {
+  """Base64-encoded PDF content"""
+  content: String!
+}
+
+"""
+Input for merging multiple PDFs.
+"""
+input PdfMergeInput {
+  """Array of base64-encoded PDF contents to merge"""
+  sources: [String!]!
+  filename: String
+  """If true, return base64 content in the response"""
+  returnContent: Boolean
+}
+
+"""
+Input for splitting a PDF into parts.
+"""
+input PdfSplitInput {
+  """Base64-encoded PDF content"""
+  content: String!
+  """Page ranges as [start, end] pairs (1-indexed, inclusive)"""
+  ranges: [[Int!]!]!
+  """If true, return base64 content for each part"""
+  returnContent: Boolean
+}
+
+extend type Query {
+  """List all registered PDF components across all modules"""
+  ReactoryPdfComponents: [ReactoryPdfComponent!]!
+  """Get a specific PDF component by namespace, name, and optional version"""
+  ReactoryPdfComponent(nameSpace: String!, name: String!, version: String): ReactoryPdfComponent
+  """Extract text from a PDF"""
+  ReactoryPdfExtractText(input: PdfExtractTextInput!): PdfExtractedText!
+  """Extract layout-aware page data from a PDF"""
+  ReactoryPdfExtractPages(input: PdfExtractPagesInput!): [PdfExtractedPageLayout!]!
+}
+
+extend type Mutation {
+  """Generate a PDF from a registered component"""
+  ReactoryPdfGenerateFromComponent(input: PdfGenerateFromComponentInput!): PdfGenerationResult!
+  """Generate a PDF from a raw pdfmake document definition"""
+  ReactoryPdfGenerateFromDefinition(input: PdfGenerateFromDefinitionInput!): PdfGenerationResult!
+  """Merge multiple PDFs into one"""
+  ReactoryPdfMerge(input: PdfMergeInput!): PdfGenerationResult!
+  """Split a PDF into multiple parts by page ranges"""
+  ReactoryPdfSplit(input: PdfSplitInput!): PdfSplitResult!
+}
