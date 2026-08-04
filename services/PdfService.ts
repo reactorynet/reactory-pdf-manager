@@ -1,5 +1,5 @@
 import Reactory from '@reactorynet/reactory-core';
-import modules from '@reactory/server-core/modules';
+// Lazily accessed in collectComponents() to avoid eager module graph initialization in tests
 import { readFileSync, existsSync } from 'fs';
 import { PNG } from 'pngjs';
 import imageType from 'image-type';
@@ -129,12 +129,19 @@ class PdfService implements Reactory.Service.IReactoryPdfService {
 
   private collectComponents(): void {
     this.components = [];
-    modules.enabled.forEach((mod: Reactory.Server.IReactoryModule) => {
-      if (mod.pdfs && mod.pdfs.length > 0) {
-        this.context.log(`PdfService: Registering ${mod.pdfs.length} PDF components from ${mod.name}`);
-        this.components.push(...mod.pdfs);
+    try {
+      const modules = require('@reactory/server-core/modules').default;
+      if (modules && modules.enabled) {
+        modules.enabled.forEach((mod: Reactory.Server.IReactoryModule) => {
+          if (mod.pdfs && mod.pdfs.length > 0) {
+            this.context.log(`PdfService: Registering ${mod.pdfs.length} PDF components from ${mod.name}`);
+            this.components.push(...mod.pdfs);
+          }
+        });
       }
-    });
+    } catch (err) {
+      this.context.log(`PdfService: Failed to collect components: ${err.message}`, 'warn');
+    }
   }
 
   getRegisteredComponents(): Reactory.Pdf.IReactoryPdfComponent[] {
@@ -240,6 +247,40 @@ class PdfService implements Reactory.Service.IReactoryPdfService {
   }
 
   // ─── Extraction ──────────────────────────────────────────────────────
+
+  /**
+   * Converts a PDF into clean Markdown text by extracting structured text per page.
+   */
+  async toMarkdown(source: Buffer | string): Promise<string> {
+    const extracted = await this.extractText(source);
+    if (!extracted.pages || extracted.pages.length === 0) {
+      return '';
+    }
+
+    const markdownParts: string[] = [];
+    if (extracted.metadata && Object.keys(extracted.metadata).length > 0) {
+      if (extracted.metadata.Title) {
+        markdownParts.push(`# ${extracted.metadata.Title}\n`);
+      }
+    }
+
+    extracted.pages.forEach((page) => {
+      markdownParts.push(`## Page ${page.pageNumber}\n`);
+      if (page.lines && page.lines.length > 0) {
+        page.lines.forEach((line) => {
+          const trimmed = line.trim();
+          if (trimmed) {
+            markdownParts.push(`${trimmed}\n`);
+          }
+        });
+      } else if (page.text) {
+        markdownParts.push(`${page.text.trim()}\n`);
+      }
+      markdownParts.push('\n---\n');
+    });
+
+    return markdownParts.join('\n').trim();
+  }
 
   /**
    * Extracts structured text from a PDF using pdf2json.
