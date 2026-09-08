@@ -58,4 +58,12 @@ describe('PdfService', () => {
     expect(markdown).toContain('## Page 2');
     expect(markdown).toContain('Hello world page 2');
   });
+
+  test('docxToMarkdown should convert DocX source to Markdown', async () => {
+    jest.spyOn(pdfService, 'docxToMarkdown').mockResolvedValue('# DocX Heading\n\nDocX Paragraph Content');
+
+    const markdown = await pdfService.toMarkdown('/path/to/sample.docx');
+    expect(markdown).toBe('# DocX Heading\n\nDocX Paragraph Content');
+    expect(pdfService.docxToMarkdown).toHaveBeenCalledWith('/path/to/sample.docx');
+  });
 });

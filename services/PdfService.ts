@@ -249,9 +249,26 @@ class PdfService implements Reactory.Service.IReactoryPdfService {
   // ─── Extraction ──────────────────────────────────────────────────────
 
   /**
-   * Converts a PDF into clean Markdown text by extracting structured text per page.
+   * Converts a DocX document into clean Markdown text using mammoth.
+   */
+  async docxToMarkdown(source: Buffer | string): Promise<string> {
+    const mammoth = require('mammoth');
+    let result: any;
+    if (typeof source === 'string') {
+      result = await mammoth.convertToMarkdown({ path: source });
+    } else {
+      result = await mammoth.convertToMarkdown({ buffer: source });
+    }
+    return result.value || '';
+  }
+
+  /**
+   * Converts a PDF or DocX document into clean Markdown text.
    */
   async toMarkdown(source: Buffer | string): Promise<string> {
+    if (typeof source === 'string' && (source.toLowerCase().endsWith('.docx') || source.toLowerCase().endsWith('.doc'))) {
+      return this.docxToMarkdown(source);
+    }
     const extracted = await this.extractText(source);
     if (!extracted.pages || extracted.pages.length === 0) {
       return '';
